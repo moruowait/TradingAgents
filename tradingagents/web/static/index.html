@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TradingAgents 可视化工作台</title>
+    <link rel="stylesheet" href="/static/styles.css?v=report-history-preview" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>TradingAgents</h1>
+          <p>可视化分析工作台</p>
+        </div>
+        <nav class="tabs" aria-label="视图">
+          <button class="tab active" data-view="workbench">分析工作台</button>
+          <button class="tab" data-view="history">历史任务</button>
+          <button class="tab" data-view="reports">报告历史</button>
+          <button class="tab" data-view="system">系统设置</button>
+        </nav>
+      </header>
+
+      <section id="workbench" class="view active">
+        <form id="analysis-form" class="panel">
+          <div class="panel-title">
+            <h2>用户行为</h2>
+            <span>创建一次分析任务</span>
+          </div>
+          <div class="grid two">
+            <label>标的代码 <input name="ticker" placeholder="SPY, 0700.HK, BTC-USD" required /></label>
+            <label>分析日期 <input name="trade_date" type="date" required /></label>
+            <label>资产类型
+              <select name="asset_type">
+                <option value="">自动识别</option>
+                <option value="stock">股票</option>
+                <option value="crypto">加密货币</option>
+              </select>
+            </label>
+            <label>输出语言
+              <select name="output_language">
+                <option value="中文" selected>中文</option>
+                <option value="English">English</option>
+                <option value="">系统默认</option>
+              </select>
+            </label>
+          </div>
+          <fieldset>
+            <legend>分析师</legend>
+            <label><input type="checkbox" name="selected_analysts" value="market" checked /> 市场技术</label>
+            <label><input type="checkbox" name="selected_analysts" value="social" checked /> 情绪舆情</label>
+            <label><input type="checkbox" name="selected_analysts" value="news" checked /> 新闻宏观</label>
+            <label><input type="checkbox" name="selected_analysts" value="fundamentals" checked /> 基本面</label>
+          </fieldset>
+          <div class="grid two">
+            <label>研究辩论轮数 <input name="max_debate_rounds" type="number" min="1" placeholder="使用系统默认值" /></label>
+            <label>风险讨论轮数 <input name="max_risk_discuss_rounds" type="number" min="1" placeholder="使用系统默认值" /></label>
+          </div>
+          <label>备注 <textarea name="note" rows="3" placeholder="可选的任务备注"></textarea></label>
+          <p id="asset-hint" class="hint"></p>
+          <button class="primary" type="submit">开始分析</button>
+        </form>
+
+        <aside class="panel">
+          <div class="panel-title">
+            <h2>当前任务</h2>
+            <span id="current-status">空闲</span>
+          </div>
+          <div id="current-job" class="empty">尚未选择任务。</div>
+        </aside>
+      </section>
+
+      <section id="history" class="view">
+        <div class="panel history-list-panel">
+          <div class="panel-title">
+            <h2>用户行为历史</h2>
+            <button id="refresh-jobs" type="button">刷新</button>
+          </div>
+          <div id="job-list" class="list"></div>
+        </div>
+        <aside class="panel history-detail-panel">
+          <div class="panel-title">
+            <h2>任务详情</h2>
+            <span id="history-detail-status">未选择</span>
+          </div>
+          <div id="history-detail" class="empty">从左侧选择一条历史任务。</div>
+        </aside>
+      </section>
+
+      <section id="reports" class="view">
+        <div class="panel report-list-panel">
+          <div class="panel-title">
+            <h2>报告历史</h2>
+            <button id="refresh-reports" type="button">刷新</button>
+          </div>
+          <div id="report-list" class="list"></div>
+        </div>
+        <aside class="panel report-preview-panel">
+          <div class="panel-title">
+            <h2>报告预览</h2>
+            <span id="report-detail-status">未选择</span>
+          </div>
+          <div id="report-detail" class="empty">从左侧选择一份报告。</div>
+        </aside>
+      </section>
+
+      <section id="system" class="view">
+        <div class="panel">
+          <div class="panel-title">
+            <h2>系统设置</h2>
+            <span>由部署者维护的配置</span>
+          </div>
+          <div id="system-settings" class="settings"></div>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js?v=report-history-preview"></script>
+  </body>
+</html>

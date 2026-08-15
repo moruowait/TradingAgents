@@ -62,6 +62,19 @@ def _coerce_max_retries(value):
     return n
 
 
+def _coerce_llm_timeout(value):
+    """Validate an ``llm_timeout`` value to a positive float."""
+    if isinstance(value, bool):
+        raise ValueError(f"llm_timeout must be a positive number, not a boolean: {value!r}")
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"llm_timeout must be a positive number, got {value!r}") from exc
+    if seconds <= 0:
+        raise ValueError(f"llm_timeout must be > 0, got {seconds:g}")
+    return seconds
+
+
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
@@ -182,6 +195,10 @@ class TradingAgentsGraph:
         max_retries = self.config.get("llm_max_retries")
         if max_retries is not None and max_retries != "":
             kwargs["max_retries"] = _coerce_max_retries(max_retries)
+
+        timeout = self.config.get("llm_timeout")
+        if timeout is not None and timeout != "":
+            kwargs["timeout"] = _coerce_llm_timeout(timeout)
 
         return kwargs
 

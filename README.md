@@ -122,6 +122,38 @@ cp .env.example .env  # add your API keys
 docker compose run --rm tradingagents
 ```
 
+To run the browser-based workbench:
+```bash
+pip install ".[web]"
+tradingagents-web
+```
+
+Or run it with Docker:
+```bash
+cp .env.example .env  # add your API keys
+docker compose --profile web up tradingagents-web
+```
+
+The web app listens on `0.0.0.0:8000` by default. For overseas deployment, put
+Nginx/Caddy/your cloud load balancer in front of the container, terminate HTTPS
+there, and keep provider API keys in the server-side `.env` file. Users only
+create analysis tasks through the browser; they do not need direct access to
+LLM or market-data credentials.
+
+The web interface keeps deployment-owned system settings separate from
+user behavior:
+
+- System settings: LLM provider, model IDs, base URL, API keys, data vendors,
+  cache/results paths, retry/timeout-style controls, deployment URL, and admin
+  token configuration.
+- User behavior: ticker, analysis date, asset type, selected analysts, optional
+  per-run language/debate/risk depth, task notes, history, and report viewing.
+
+Set `TRADINGAGENTS_WEB_ADMIN_TOKEN` to require an admin token for the
+system-settings API. Analysis tasks and reports are stored under
+`TRADINGAGENTS_WEB_STATE_DIR` when set, otherwise under the configured
+TradingAgents results directory.
+
 For local models with Ollama:
 ```bash
 docker compose --profile ollama run --rm tradingagents-ollama

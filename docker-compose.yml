@@ -8,6 +8,21 @@ services:
     tty: true
     stdin_open: true
 
+  tradingagents-web:
+    build: .
+    command: tradingagents-web
+    env_file:
+      - .env
+    environment:
+      - TRADINGAGENTS_WEB_HOST=0.0.0.0
+      - TRADINGAGENTS_WEB_PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - tradingagents_data:/home/appuser/.tradingagents
+    profiles:
+      - web
+
   ollama:
     image: ollama/ollama:latest
     volumes:

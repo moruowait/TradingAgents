@@ -1,4 +1,5 @@
 import contextlib
+import os
 import warnings
 
 # Load .env files at package import so DEFAULT_CONFIG's env-var overlay
@@ -13,6 +14,17 @@ try:
 
     load_dotenv(find_dotenv(usecwd=True))
     load_dotenv(find_dotenv(".env.enterprise", usecwd=True), override=False)
+except ImportError:
+    pass
+
+# Framework Python builds on macOS may have an empty OpenSSL CA path until the
+# certificate installer is run. Default to certifi so urllib/requests data
+# sources can verify HTTPS endpoints unless the deployer provided a custom CA.
+try:
+    import certifi
+
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
 except ImportError:
     pass
 
