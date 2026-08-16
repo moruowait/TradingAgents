@@ -140,6 +140,9 @@ there, and keep provider API keys in the server-side `.env` file. Users only
 create analysis tasks through the browser; they do not need direct access to
 LLM or market-data credentials.
 
+For a production-ready server checklist, see
+[`SERVER_DEPLOYMENT.md`](SERVER_DEPLOYMENT.md).
+
 The web interface keeps deployment-owned system settings separate from
 user behavior:
 
@@ -152,7 +155,7 @@ user behavior:
 The web UI uses account/password login. On first startup, the built-in
 `admin` account is initialized as an administrator with password `123456`
 (override it with `TRADINGAGENTS_WEB_ADMIN_PASSWORD`). Open `/admin` or the
-`用户管理` tab after logging in as `default` to add and delete normal users and
+`用户管理` tab after logging in as `admin` to add and delete normal users and
 set their initial passwords.
 
 Analysis tasks are persisted in a lightweight SQLite database at
