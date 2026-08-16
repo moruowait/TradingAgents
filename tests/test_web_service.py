@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import builtins
+import sqlite3
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -11,10 +12,22 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.web.app import create_app
 from tradingagents.web.service import (
     AnalysisRequest,
+    DEFAULT_USER_ID,
     JobStore,
+    configured_admin_user_id,
+    normalize_user_id,
     run_analysis_job,
     system_settings_snapshot,
 )
+
+
+def auth_headers(client: TestClient, user_id: str = DEFAULT_USER_ID, password: str = "123456"):
+    response = client.post(
+        "/api/auth/login",
+        json={"user_id": user_id, "password": password},
+    )
+    assert response.status_code == 200
+    return {"X-Auth-Token": response.json()["token"]}
 
 
 def test_analysis_request_separates_user_behavior_from_system_config():
@@ -60,13 +73,25 @@ def test_system_settings_snapshot_redacts_secrets(monkeypatch):
     compatible_secret = next(
         item for item in snapshot["secrets"] if item["key"] == "OPENAI_COMPATIBLE_API_KEY"
     )
+    data_secret = next(item for item in snapshot["secrets"] if item["key"] == "ALPHA_VANTAGE_API_KEY")
+    llm_provider = next(item for item in snapshot["settings"] if item["key"] == "llm_provider")
+    results_dir = next(item for item in snapshot["settings"] if item["key"] == "results_dir")
 
     assert secret["configured"] is True
     assert secret["value"] == "***configured***"
+    assert secret["group"] == "llm_credentials"
     assert compatible_secret["configured"] is True
     assert compatible_secret["value"] == "***configured***"
+    assert compatible_secret["group"] == "llm_credentials"
+    assert data_secret["group"] == "data_credentials"
+    assert llm_provider["group"] == "llm_base"
+    assert results_dir["group"] == "business_runtime"
+    assert snapshot["groups"]["llm_base"]["title"] == "LLM 基础配置"
+    assert snapshot["groups"]["business_runtime"]["title"] == "业务运行配置"
     assert snapshot["deployment"]["scope"] == "system"
+    assert snapshot["deployment"]["group"] == "deployment"
     assert snapshot["user_behavior_schema"]["scope"] == "user_behavior"
+    assert snapshot["user_behavior_schema"]["group"] == "user_behavior"
 
 
 def test_job_store_persists_user_behavior_scope(tmp_path):
@@ -74,13 +99,161 @@ def test_job_store_persists_user_behavior_scope(tmp_path):
     request = AnalysisRequest.from_mapping({"ticker": "AAPL", "trade_date": "2026-01-15"})
 
     job = store.create(request)
-    path = store.path(job["id"])
 
     assert job["scope"] == "user_behavior"
-    assert path.exists()
-    persisted = json.loads(path.read_text(encoding="utf-8"))
+    assert job["user_id"] == DEFAULT_USER_ID
+    assert store.db_path.exists()
+    persisted = store.get(job["id"], user_id=DEFAULT_USER_ID)
     assert persisted["request"]["ticker"] == "AAPL"
     assert persisted["system_snapshot"]["deployment"]["scope"] == "system"
+
+
+def test_normalize_user_id_keeps_storage_key_safe():
+    assert normalize_user_id(" Alice. Zhang ") == "alicezhang"
+    assert normalize_user_id("") == DEFAULT_USER_ID
+
+
+def test_job_store_isolates_jobs_by_user(tmp_path):
+    store = JobStore(tmp_path)
+    alice_job = store.create(
+        AnalysisRequest.from_mapping({"ticker": "AAPL", "trade_date": "2026-01-15"}),
+        user_id="alice",
+    )
+    bob_job = store.create(
+        AnalysisRequest.from_mapping({"ticker": "MSFT", "trade_date": "2026-01-15"}),
+        user_id="bob",
+    )
+
+    assert [job["id"] for job in store.list(user_id="alice")] == [alice_job["id"]]
+    assert [job["id"] for job in store.list(user_id="bob")] == [bob_job["id"]]
+    with pytest.raises(KeyError):
+        store.get(alice_job["id"], user_id="bob")
+
+
+def test_job_store_initializes_default_admin_user(tmp_path):
+    store = JobStore(tmp_path)
+    users = {user["user_id"]: user for user in store.list_users()}
+
+    assert configured_admin_user_id() == DEFAULT_USER_ID
+    assert users[DEFAULT_USER_ID]["role"] == "admin"
+    assert store.authenticate_user(DEFAULT_USER_ID, "123456")["role"] == "admin"
+
+
+def test_job_store_migrates_legacy_default_admin_to_admin_user(tmp_path):
+    db_path = tmp_path / "state.sqlite3"
+    legacy_job = {
+        "id": "legacy-job",
+        "user_id": "default",
+        "scope": "user_behavior",
+        "status": "completed",
+        "created_at": "2026-01-15T00:00:00+00:00",
+        "updated_at": "2026-01-15T00:00:00+00:00",
+        "request": {"ticker": "AAPL", "trade_date": "2026-01-15"},
+        "events": [],
+        "system_snapshot": {},
+        "result": None,
+        "error": None,
+    }
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE users (
+                user_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                password_hash TEXT,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE jobs (
+                job_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                payload TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO users VALUES (?, ?, ?, ?, ?)",
+            ("default", "默认用户", "admin", None, "2026-01-15T00:00:00+00:00"),
+        )
+        conn.execute(
+            "INSERT INTO users VALUES (?, ?, ?, ?, ?)",
+            ("admin", "旧管理员", "user", None, "2026-01-16T00:00:00+00:00"),
+        )
+        conn.execute(
+            "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                "legacy-job",
+                "default",
+                "completed",
+                "2026-01-15T00:00:00+00:00",
+                "2026-01-15T00:00:00+00:00",
+                json.dumps(legacy_job),
+            ),
+        )
+
+    store = JobStore(tmp_path)
+    users = {user["user_id"]: user for user in store.list_users()}
+    migrated_job = store.get("legacy-job", user_id="admin")
+
+    assert "default" not in users
+    assert users["admin"]["role"] == "admin"
+    assert users["admin"]["job_count"] == 1
+    assert migrated_job["user_id"] == "admin"
+
+
+def test_admin_user_management_adds_and_deletes_users(tmp_path):
+    store = JobStore(tmp_path)
+    client = TestClient(create_app(store))
+    headers = auth_headers(client)
+
+    assert client.get("/api/admin/users").status_code == 401
+    assert client.post(
+        "/api/auth/login",
+        json={"user_id": DEFAULT_USER_ID, "password": "wrong"},
+    ).status_code == 401
+
+    created = client.post(
+        "/api/admin/users",
+        headers=headers,
+        json={"user_id": "Alice.Zhang", "display_name": "Alice Zhang", "password": "alice-pass"},
+    )
+
+    assert created.status_code == 200
+    assert created.json()["user_id"] == "alicezhang"
+    assert store.user_exists("alicezhang") is True
+    assert store.authenticate_user("alicezhang", "alice-pass")["user_id"] == "alicezhang"
+
+    store.create(
+        AnalysisRequest.from_mapping({"ticker": "AAPL", "trade_date": "2026-01-15"}),
+        user_id="alicezhang",
+    )
+    deleted = client.delete("/api/admin/users/alicezhang", headers=headers)
+
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted_job_count"] == 1
+    assert store.user_exists("alicezhang") is False
+    assert store.list(user_id="alicezhang") == []
+    assert client.delete(f"/api/admin/users/{DEFAULT_USER_ID}", headers=headers).status_code == 400
+
+
+def test_analysis_api_requires_login(tmp_path):
+    store = JobStore(tmp_path)
+    client = TestClient(create_app(store))
+
+    response = client.post(
+        "/api/jobs",
+        json={"ticker": "AAPL", "trade_date": "2026-01-15"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "请先登录"
 
 
 def test_job_view_marks_stale_running_task(tmp_path, monkeypatch):
@@ -209,14 +382,66 @@ def test_report_download_endpoint_returns_markdown(tmp_path, monkeypatch):
     )
     report = store.list_reports()[0]
     client = TestClient(create_app(store))
+    headers = auth_headers(client)
 
-    preview = client.get(f"/api/reports/{report['id']}")
-    download = client.get(f"/api/reports/{report['id']}/download")
+    preview = client.get(f"/api/reports/{report['id']}", headers=headers)
+    download = client.get(f"/api/reports/{report['id']}/download", headers=headers)
 
     assert preview.status_code == 200
     assert preview.json()["content"] == "# AAPL Report"
     assert download.status_code == 200
     assert download.text == "# AAPL Report"
+
+
+def test_report_endpoints_are_isolated_by_user(tmp_path, monkeypatch):
+    results_dir = tmp_path / "results"
+    monkeypatch.setitem(DEFAULT_CONFIG, "results_dir", str(results_dir))
+    store = JobStore(tmp_path / "state")
+    alice_report = results_dir / "reports" / "AAPL_20260115_120000" / "complete_report.md"
+    bob_report = results_dir / "reports" / "MSFT_20260115_120000" / "complete_report.md"
+    alice_report.parent.mkdir(parents=True)
+    bob_report.parent.mkdir(parents=True)
+    alice_report.write_text("# AAPL Report", encoding="utf-8")
+    bob_report.write_text("# MSFT Report", encoding="utf-8")
+    store.create_user("alice", display_name="Alice", password="alice-pass")
+    store.create_user("bob", display_name="Bob", password="bob-pass")
+    alice_job = store.create(
+        AnalysisRequest.from_mapping({"ticker": "AAPL", "trade_date": "2026-01-15"}),
+        user_id="alice",
+    )
+    bob_job = store.create(
+        AnalysisRequest.from_mapping({"ticker": "MSFT", "trade_date": "2026-01-15"}),
+        user_id="bob",
+    )
+    store.update(
+        alice_job["id"],
+        status="completed",
+        completed_at="2026-01-15T12:00:00+00:00",
+        result={"report_path": str(alice_report)},
+    )
+    store.update(
+        bob_job["id"],
+        status="completed",
+        completed_at="2026-01-15T12:00:00+00:00",
+        result={"report_path": str(bob_report)},
+    )
+    client = TestClient(create_app(store))
+    alice_headers = auth_headers(client, "alice", "alice-pass")
+    bob_headers = auth_headers(client, "bob", "bob-pass")
+
+    alice_reports = client.get("/api/reports", headers=alice_headers).json()["reports"]
+    bob_reports = client.get("/api/reports", headers=bob_headers).json()["reports"]
+
+    assert [report["ticker"] for report in alice_reports] == ["AAPL"]
+    assert [report["ticker"] for report in bob_reports] == ["MSFT"]
+    assert client.get(
+        f"/api/reports/{bob_reports[0]['id']}",
+        headers=alice_headers,
+    ).status_code == 404
+    assert client.get(
+        f"/api/reports/{bob_reports[0]['id']}/download",
+        headers=alice_headers,
+    ).status_code == 404
 
 
 def test_run_analysis_job_marks_import_failure_as_failed(tmp_path, monkeypatch):

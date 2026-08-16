@@ -4,10 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TradingAgents 可视化工作台</title>
-    <link rel="stylesheet" href="/static/styles.css?v=report-history-preview" />
+    <link rel="stylesheet" href="/static/styles.css?v=settings-groups" />
   </head>
   <body>
-    <main class="shell">
+    <section id="login-screen" class="login-screen">
+      <form id="login-form" class="login-panel">
+        <div>
+          <h1>TradingAgents</h1>
+          <p>账号密码登录</p>
+        </div>
+        <label>账号 <input id="login-user-id" name="user_id" autocomplete="username" value="admin" required /></label>
+        <label>密码 <input id="login-password" name="password" type="password" autocomplete="current-password" required /></label>
+        <button class="primary" type="submit">登录</button>
+        <div id="login-error" class="empty"></div>
+      </form>
+    </section>
+
+    <main class="shell hidden">
       <header class="topbar">
         <div>
           <h1>TradingAgents</h1>
@@ -18,7 +31,15 @@
           <button class="tab" data-view="history">历史任务</button>
           <button class="tab" data-view="reports">报告历史</button>
           <button class="tab" data-view="system">系统设置</button>
+          <button class="tab" data-view="admin-users">用户管理</button>
         </nav>
+        <div class="user-switcher">
+          <div>
+            <span class="meta">当前账号</span>
+            <strong id="current-user-label">未登录</strong>
+          </div>
+          <button id="logout-button" type="button">退出</button>
+        </div>
       </header>
 
       <section id="workbench" class="view active">
@@ -113,7 +134,40 @@
           <div id="system-settings" class="settings"></div>
         </div>
       </section>
+
+      <section id="admin-users" class="view">
+        <div class="panel">
+          <div class="panel-title">
+            <h2>管理员状态</h2>
+            <span id="admin-status">未连接</span>
+          </div>
+          <div id="admin-session-detail" class="empty">请使用管理员账号登录。</div>
+        </div>
+
+        <aside class="panel">
+          <div class="panel-title">
+            <h2>新增用户</h2>
+            <button id="refresh-admin-users" type="button">刷新</button>
+          </div>
+          <form id="create-user-form">
+            <div class="grid two">
+              <label>用户 ID <input name="user_id" placeholder="alice" required /></label>
+              <label>显示名称 <input name="display_name" placeholder="Alice" /></label>
+              <label>初始密码 <input name="password" type="password" placeholder="至少 1 位" required /></label>
+            </div>
+            <button class="primary" type="submit">新增用户</button>
+          </form>
+        </aside>
+
+        <div class="panel admin-user-list-panel">
+          <div class="panel-title">
+            <h2>用户列表</h2>
+            <span>管理员维护的可用用户</span>
+          </div>
+          <div id="admin-users-list" class="list"></div>
+        </div>
+      </section>
     </main>
-    <script src="/static/app.js?v=report-history-preview"></script>
+    <script src="/static/app.js?v=settings-groups"></script>
   </body>
 </html>

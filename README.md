@@ -149,10 +149,24 @@ user behavior:
 - User behavior: ticker, analysis date, asset type, selected analysts, optional
   per-run language/debate/risk depth, task notes, history, and report viewing.
 
-Set `TRADINGAGENTS_WEB_ADMIN_TOKEN` to require an admin token for the
-system-settings API. Analysis tasks and reports are stored under
-`TRADINGAGENTS_WEB_STATE_DIR` when set, otherwise under the configured
-TradingAgents results directory.
+The web UI uses account/password login. On first startup, the built-in
+`admin` account is initialized as an administrator with password `123456`
+(override it with `TRADINGAGENTS_WEB_ADMIN_PASSWORD`). Open `/admin` or the
+`用户管理` tab after logging in as `default` to add and delete normal users and
+set their initial passwords.
+
+Analysis tasks are persisted in a lightweight SQLite database at
+`TRADINGAGENTS_WEB_DB_PATH` when set, otherwise at
+`<results_dir>/web/state.sqlite3`. Existing JSON task history under
+`<results_dir>/web/jobs` is migrated into SQLite automatically for the default
+user.
+
+Each logged-in account sees only its own task history, report preview, and
+report downloads. API requests use the login session token, and direct report
+downloads pass that token as a download parameter because ordinary browser
+download links cannot attach custom headers reliably. For public or team
+deployment, still put HTTPS and network access control in front of the app with
+your reverse proxy, identity provider, or cloud gateway.
 
 For local models with Ollama:
 ```bash
