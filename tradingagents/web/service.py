@@ -26,7 +26,12 @@ DEFAULT_USER_ID = "admin"
 DEFAULT_ADMIN_USER_ID = DEFAULT_USER_ID
 DEFAULT_ADMIN_PASSWORD = "123456"
 PASSWORD_HASH_ITERATIONS = 200_000
-USER_CONFIG_KEYS = ("output_language", "max_debate_rounds", "max_risk_discuss_rounds")
+USER_CONFIG_KEYS = (
+    "output_language",
+    "research_depth",
+    "max_debate_rounds",
+    "max_risk_discuss_rounds",
+)
 SYSTEM_CONFIG_KEYS = (
     "llm_provider",
     "deep_think_llm",
@@ -300,6 +305,7 @@ class AnalysisRequest:
     asset_type: str | None = None
     selected_analysts: list[str] = field(default_factory=lambda: list(ANALYSTS))
     output_language: str | None = None
+    research_depth: int | None = None
     max_debate_rounds: int | None = None
     max_risk_discuss_rounds: int | None = None
     note: str | None = None
@@ -315,6 +321,7 @@ class AnalysisRequest:
             asset_type=data.get("asset_type") or None,
             selected_analysts=list(data.get("selected_analysts") or ANALYSTS),
             output_language=data.get("output_language") or None,
+            research_depth=_optional_int(data.get("research_depth")),
             max_debate_rounds=_optional_int(data.get("max_debate_rounds")),
             max_risk_discuss_rounds=_optional_int(data.get("max_risk_discuss_rounds")),
             note=data.get("note") or None,
@@ -337,7 +344,7 @@ class AnalysisRequest:
         if not selected:
             raise ValueError("selected_analysts must include at least one analyst")
         self.selected_analysts = selected
-        for key in ("max_debate_rounds", "max_risk_discuss_rounds"):
+        for key in ("research_depth", "max_debate_rounds", "max_risk_discuss_rounds"):
             value = getattr(self, key)
             if value is not None and value < 1:
                 raise ValueError(f"{key} must be >= 1")
@@ -346,6 +353,9 @@ class AnalysisRequest:
         config = deepcopy(DEFAULT_CONFIG)
         if self.output_language:
             config["output_language"] = self.output_language
+        if self.research_depth is not None:
+            config["max_debate_rounds"] = self.research_depth
+            config["max_risk_discuss_rounds"] = self.research_depth
         if self.max_debate_rounds is not None:
             config["max_debate_rounds"] = self.max_debate_rounds
         if self.max_risk_discuss_rounds is not None:

@@ -164,13 +164,28 @@ function formatBytes(bytes) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function formatResearchDepth(value) {
+  const depth = Number(value);
+  if (depth === 1) return "快速 · 1 轮";
+  if (depth === 3) return "标准 · 3 轮";
+  if (depth === 5) return "深入 · 5 轮";
+  if (depth > 0) return `${depth} 轮`;
+  return "系统默认";
+}
+
+function formatRoundOverride(rounds, researchDepth) {
+  if (rounds) return rounds;
+  if (researchDepth) return `${researchDepth}（来自研究深度）`;
+  return "系统默认";
+}
+
 function collectForm(form) {
   const data = Object.fromEntries(new FormData(form).entries());
   data.selected_analysts = $$('input[name="selected_analysts"]:checked').map((node) => node.value);
   if (resolveAssetType(data.ticker, data.asset_type) === "crypto") {
     data.selected_analysts = data.selected_analysts.filter((name) => name !== "fundamentals");
   }
-  for (const key of ["max_debate_rounds", "max_risk_discuss_rounds"]) {
+  for (const key of ["research_depth", "max_debate_rounds", "max_risk_discuss_rounds"]) {
     if (data[key]) data[key] = Number(data[key]);
   }
   return data;
@@ -244,8 +259,9 @@ function renderRequestDetails(job) {
     ["用户", job.user_id || DEFAULT_USER_ID],
     ["资产类型", request.asset_type === "crypto" ? "加密货币" : "股票"],
     ["输出语言", request.output_language || "系统默认"],
-    ["研究辩论轮数", request.max_debate_rounds || "系统默认"],
-    ["风险讨论轮数", request.max_risk_discuss_rounds || "系统默认"],
+    ["研究深度", formatResearchDepth(request.research_depth)],
+    ["研究辩论轮数", formatRoundOverride(request.max_debate_rounds, request.research_depth)],
+    ["风险讨论轮数", formatRoundOverride(request.max_risk_discuss_rounds, request.research_depth)],
   ];
   if (request.note) fields.push(["备注", request.note]);
   return `

@@ -53,6 +53,38 @@ def test_analysis_request_separates_user_behavior_from_system_config():
     assert "llm_provider" in config
 
 
+def test_analysis_request_research_depth_sets_round_counts():
+    request = AnalysisRequest.from_mapping(
+        {
+            "ticker": "AAPL",
+            "trade_date": "2026-01-15",
+            "research_depth": 5,
+        }
+    )
+
+    config = request.run_config()
+
+    assert request.research_depth == 5
+    assert config["max_debate_rounds"] == 5
+    assert config["max_risk_discuss_rounds"] == 5
+
+
+def test_analysis_request_round_overrides_win_over_research_depth():
+    request = AnalysisRequest.from_mapping(
+        {
+            "ticker": "AAPL",
+            "trade_date": "2026-01-15",
+            "research_depth": 5,
+            "max_debate_rounds": 2,
+        }
+    )
+
+    config = request.run_config()
+
+    assert config["max_debate_rounds"] == 2
+    assert config["max_risk_discuss_rounds"] == 5
+
+
 def test_crypto_request_rejects_fundamentals_analyst():
     with pytest.raises(ValueError, match="unsupported"):
         AnalysisRequest.from_mapping(
