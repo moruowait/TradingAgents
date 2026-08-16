@@ -395,6 +395,64 @@ fieldset input {
   accent-color: var(--brand);
 }
 
+.advanced-settings {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 0 0 14px;
+  background: rgba(7, 11, 15, 0.38);
+}
+
+.advanced-settings[open] {
+  border-color: rgba(136, 255, 243, 0.28);
+}
+
+.advanced-settings summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 12px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--brand-strong);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.advanced-settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-settings summary::after {
+  content: "⌄";
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--brand-strong);
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.advanced-settings[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.advanced-settings-note {
+  margin: 0;
+  padding: 0 12px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.advanced-settings .grid {
+  padding: 0 12px 12px;
+}
+
 .list,
 .settings {
   display: grid;

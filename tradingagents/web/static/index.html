@@ -81,10 +81,17 @@
             <label><input type="checkbox" name="selected_analysts" value="news" checked /> 新闻宏观</label>
             <label><input type="checkbox" name="selected_analysts" value="fundamentals" checked /> 基本面</label>
           </fieldset>
-          <div class="grid two">
-            <label>研究辩论轮数 <input name="max_debate_rounds" type="number" min="1" placeholder="使用系统默认值" /></label>
-            <label>风险讨论轮数 <input name="max_risk_discuss_rounds" type="number" min="1" placeholder="使用系统默认值" /></label>
-          </div>
+          <details class="advanced-settings">
+            <summary>
+              <span>高级设置</span>
+              <span>轮数覆盖</span>
+            </summary>
+            <p class="advanced-settings-note">不填写时跟随研究深度。</p>
+            <div class="grid two">
+              <label>研究辩论轮数 <input name="max_debate_rounds" type="number" min="1" placeholder="跟随研究深度" /></label>
+              <label>风险讨论轮数 <input name="max_risk_discuss_rounds" type="number" min="1" placeholder="跟随研究深度" /></label>
+            </div>
+          </details>
           <label>备注 <textarea name="note" rows="3" placeholder="可选的任务备注"></textarea></label>
           <p id="asset-hint" class="hint"></p>
           <button class="primary" type="submit">开始分析</button>
@@ -176,6 +183,6 @@
         </div>
       </section>
     </main>
-    <script src="/static/app.js?v=research-depth"></script>
+    <script src="/static/app.js?v=advanced-rounds"></script>
   </body>
 </html>
